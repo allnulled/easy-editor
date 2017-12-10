@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<title>Easy-Editor application</title>
+		<meta name="viewport" content="width=device-width, user-scalable=no">
+		<meta charset="utf-8">
+		<link href="app/css/app.css" rel="stylesheet" type="text/css" />
+		<script src="app/js/angular-1.6.5.min.js"></script>
+		<script src="app/js/peg-0.10.0.js"></script>
+		<script src="app/js/app.js"></script>
+		<style type="text/css">
+			.tab {
+				display: inline-block;
+			}
+			ul, li {
+				margin: 0;
+				padding: 0;
+				list-style: none;
+			}
+			textarea {
+				width: 100%;
+				min-height: 6000px;
+				font-size: 11px;
+				resize: vertical;
+			}
+		</style>
+	</head>
+	<body>
+		<div ng-app="easyEditor" ng-controller="easyEditorController as _" class="easy-editor-instance">
+			<nav>
+				<ul class="tabs">
+					<li class="tab source-tab" ng-click="_.ui.selectedTab = _.ui.tabs.source">
+						<button>Source</button>
+					</li>
+					<li class="tab custom-tab" ng-click="_.ui.selectedTab = _.ui.tabs.custom">
+						<button>Custom</button>
+					</li>
+					<li class="tab output-tab" ng-click="_.ui.selectedTab = _.ui.tabs.output">
+						<button>Output</button>
+					</li>
+				</ul>
+			</nav>
+			
+			<aside>
+				<ul class="panels">
+					<li class="panel source-panel" ng-show="_.ui.selectedTab === _.ui.tabs.source">
+						<div class="panel-content">
+							<div class="panel-header">
+								<h1 class="panel-title">Source</h1>
+							</div>
+							<div class="panel-body">
+								<div>STATUS: {{ _.ui.editors.source.status }}</div>
+								<textarea class="editor source-editor" ng-model="_.ui.editors.source.contents"></textarea>
+							</div>
+							<div class="panel-footer">
+								<pre class="error-message">{{ _.ui.editors.source.errorMessage }}</pre>
+							</div>
+						</div>
+					</li>
+					<li class="panel custom-panel" ng-show="_.ui.selectedTab === _.ui.tabs.custom">
+						<div class="panel-content">
+							<div class="panel-header">
+								<h1 class="panel-title">Custom</h1>
+							</div>
+							<div class="panel-body">
+								<div>STATUS: {{ _.ui.editors.custom.status }}</div>
+								<textarea class="editore custom-editor" ng-model="_.ui.editors.custom.contents"></textarea>
+							</div>
+							<div class="panel-footer">
+								<pre class="error-message">{{ _.ui.editors.custom.errorMessage }}</pre>
+							</div>
+						</div>
+					</li>
+					<li class="panel output-panel" ng-show="_.ui.selectedTab === _.ui.tabs.output">
+						<div class="panel-content">
+							<div class="panel-header">
+								<h1 class="panel-title">Output</h1>
+							</div>
+							<div class="panel-body">
+								<div>STATUS: {{ _.ui.editors.status }}</div>
+								<textarea class="editor output-editor" ng-model="_.ui.editors.output.contents"></textarea>
+							</div>
+							<div class="panel-footer">
+								<pre class="error-message">{{ _.ui.editors.output.errorMessage }}</pre>
+							</div>
+						</div>
+					</li>
+				</ul>
+			</aside>
+		</div>
+		
+		<script type="text/javascript">
+			var app;
+			app = angular.module("easyEditor", []);
+			app.controller("easyEditorController", ["$scope", function($scope) {
+				var _ = this;
+				_.ui = {};
+				
+				_.ui.tabs = {};
+				_.ui.tabs.source = "Source";
+				_.ui.tabs.custom = "Custom";
+				_.ui.tabs.output = "Output";
+				
+				_.ui.selectedTab = "Source";
+				
+				_.ui.editors = {};
+				
+				_.ui.editors.source = {};
+				_.ui.editors.source.status = "ok";
+				_.ui.editors.source.contents = "";
+				_.ui.editors.source.errorMessage = "";
+				
+				_.ui.editors.source.generateParserFn = peg.generate;
+				
+				_.ui.editors.custom = {};
+				_.ui.editors.custom.status = "ok";
+				_.ui.editors.custom.contents = "";
+				_.ui.editors.custom.errorMessage = "";
+
+				_.ui.editors.custom.generateOutputFn = undefined;
+
+				_.ui.editors.output = {};
+				_.ui.editors.output.status = "ok";
+				_.ui.editors.output.contents = "";
+				_.ui.editors.output.errorMessage = "";
+
+				var onEditorSourceContentsChange = function(newValue, oldValue) {
+					console.log("watching source");
+					if(!_.ui.editors.source.generateParserFn) {
+						onEditorSourceError("error", "The parser-generator-function is not loaded.");
+						onEditorCustomContentsChange("", _.ui.editors.custom.contents);
+						return;
+					}
+					try {
+						_.ui.editors.custom.generateOutputFn = peg.generate(newValue).parse;
+						onEditorSourceOk();
+					} catch(exc) {
+						onEditorSourceError(exc);
+					} finally {
+						onEditorCustomContentsChange(_.ui.editors.custom.contents, _.ui.editors.custom.contents);
+					}
+				};
+
+				var onEditorSourceOk = function() {
+					_.ui.editors.source.status = "ok";
+					_.ui.editors.source.errorMessage = "";
+				};
+
+				var onEditorSourceError = function(status, error) {
+					_.ui.editors.source.status = error;
+					_.ui.editors.source.errorMessage = JSON.stringify(error, null, 4);
+				};
+
+				var onEditorCustomOk = function() {
+					_.ui.editors.custom.status = "ok";
+					_.ui.editors.custom.errorMessage = "";
+				};
+
+				var onEditorCustomError = function(status, error) {
+					_.ui.editors.custom.status = error;
+					_.ui.editors.custom.errorMessage = JSON.stringify(error, null, 4);
+				};
+
+				var onEditorCustomContentsChange = function(newValue, oldValue) {
+					console.log("watching custom");
+					if(_.ui.editors.source.errorMessage !== "") {
+						onEditorCustomError("error", "The parser-generator-function produced errors compiling the parser.");
+						_.ui.editors.output.contents = _.ui.editors.output.contents;
+						return;
+					} 
+					if(typeof _.ui.editors.custom.generateOutputFn !== "function") {
+						onEditorCustomError("error", "The parser-generator-function did not produce a parser-function (in its '.parse' property)");
+						_.ui.editors.output.contents = _.ui.editors.output.contents;
+						return;
+					}
+					try {
+						_.ui.editors.output.contents = _.ui.editors.custom.generateOutputFn(newValue);
+						onEditorCustomOk();
+					} catch(exc) {
+						onEditorCustomError("error", exc);
+					} finally {
+						_.ui.editors.custom.contents = _.ui.editors.custom.contents;
+					}
+					_.ui.editors.output.contents = _.ui.editors.output.contents;
+				}
+
+				$scope.$watch("_.ui.editors.source.contents", onEditorSourceContentsChange);
+				$scope.$watch("_.ui.editors.custom.contents", onEditorCustomContentsChange);
+			}]);
+		</script>
+	</body>
+</html>
