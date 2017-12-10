@@ -61,8 +61,6 @@ casper.test.begin("Testing the application (source, custom and output + memory)"
                 custom: customValue,
                 output: outputValue,
             };
-            this.echo("result");
-            this.echo(result.source);
             test.assert(result.source === 'Language = "Hello!" {return "Goodbye!";}', "The source is remembered.");
             test.assert(result.custom === "Hello!", "The custom is remembered.");
             test.assert(result.output === "Goodbye!", "The output is remembered.");
