@@ -99,6 +99,17 @@
 		};
 		
 		var _ = this;
+
+		_.data = {};
+		_.data.source = {};
+		_.data.source.files = [];
+		_.data.source.selectedFile = "";
+		_.data.source.File = function(path, data) {
+			return Object.assign(data || {}, {
+				path: path,
+			});
+		};
+
 		_.ui = {};
 		
 		_.ui.tabs = {};
@@ -138,6 +149,7 @@
 				_.ui.editors.custom.generateOutputFn = peg.generate(newValue).parse;
 				onEditorSourceOk();
 			} catch(exc) {
+				console.log(exc);
 				onEditorSourceError(exc);
 			} finally {
 				onEditorCustomContentsChange(_.ui.editors.custom.contents, _.ui.editors.custom.contents);
@@ -163,6 +175,7 @@
 		var onEditorCustomContentsChange = function(newValue, oldValue) {
 			console.log("watching custom");
 			if(_.ui.editors.source.errorMessage !== "") {
+				console.log(_.ui.editors.source.errorMessage);
 				onEditorCustomError("error", "The parser-generator-function produced errors compiling the parser.");
 				_.ui.editors.output.contents = _.ui.editors.output.contents;
 				return;
@@ -176,6 +189,7 @@
 				_.ui.editors.output.contents = _.ui.editors.custom.generateOutputFn(newValue);
 				onEditorCustomOk();
 			} catch(exc) {
+				console.log(exc);
 				onEditorCustomError("error", exc);
 			} finally {
 				_.ui.editors.custom.contents = _.ui.editors.custom.contents;
@@ -191,6 +205,7 @@
 				_.ui.editors.custom.contents = storage.custom;
 				_.ui.editors.output.contents = storage.output;
 			} catch(exc) {
+				console.log(exc);
 				localStorage[settings.STORAGE] = JSON.stringify({source:"",custom:"",output:""});
 			}
 		};
